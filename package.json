@@ -10,6 +10,10 @@
     "taskctl": "./cli/taskctl.mjs"
   },
   "scripts": {
+    "ops": "node scripts/operations-center.mjs start",
+    "ops:codex": "node scripts/operations-center.mjs codex",
+    "ops:inject": "node scripts/operations-center.mjs inject",
+    "ops:daemon": "node scripts/operations-center.mjs daemon",
     "codex": "node scripts/codex-injector.mjs --launch --watch --open --port 9231",
     "codex:inject": "node scripts/codex-injector.mjs --watch",
     "codex:daemon": "node scripts/codex-injector.mjs --daemon --open",
