@@ -1,99 +1,191 @@
 # Pluck AI Operations Center Architecture
 
-## Goal
+## Primary goal
 
-Extend Codex Taskboard into a modular AI Operations Center without coupling business-specific logic to the taskboard core.
+Turn Dashi Taskboard into a practical personal control surface for managing **Projects, Tasks, Conversations, and Deliverables** across ChatGPT/Codex-style work.
 
-The taskboard remains the system of record for work. Domain modules detect signals, qualify them, invoke AI capabilities, and produce reviewable deliverables.
+The immediate goal is better work management, not maximum automation.
+
+Dashi is treated as the current UI/control adapter. The portable work model must survive if OpenAI or another platform later provides a better native project/task interface.
+
+## Core model
+
+```text
+Project
+  ├─ Task
+  │   ├─ Conversation(s)
+  │   └─ Deliverable(s)
+  ├─ Conversation(s)
+  └─ Deliverable(s)
+```
+
+### Project
+Durable container for a goal, workspace, and related work.
+
+### Task
+Durable unit of work. Tasks persist even if chats are replaced, split, archived, or moved to another provider.
+
+### Conversation
+Execution/thinking thread in Codex, ChatGPT, Gemini, Claude, or another provider. Conversation identity is adapter metadata rather than the canonical work identity.
+
+### Deliverable
+Reviewable output such as a report, code change, briefing, presentation, market alert, or decision memo.
+
+The portable contracts live under `modules/contracts/`.
 
 ## Design principles
 
-1. **Core stays generic** — avoid embedding Faculty, Tender, Funding, CRM, or market-specific rules into taskboard internals.
-2. **Modules are replaceable** — each capability should be callable independently and should communicate through explicit contracts.
-3. **Task is the durable object** — conversations, agent runs, and model choices are execution details.
-4. **Human review is a gate** — AI may advance work to review, but irreversible business actions require explicit approval.
-5. **Evidence travels with the task** — every commercial recommendation should retain its source URLs, timestamps, confidence, and reasoning summary.
-6. **Model-agnostic routing** — GPT, Codex, Gemini, Claude, or future agents should be interchangeable behind a routing layer.
-7. **Local-first, cloud-ready** — preserve the current local SQLite workflow while keeping module state portable to Cloudflare/D1 or future storage.
+1. **Dashi is an adapter, not the permanent system model.**
+2. **Task is the durable work object.** Conversations are execution context.
+3. **Projects organize work, not provider-specific chats.**
+4. **Deliverables survive conversation churn.**
+5. **Core stays generic.** Business-specific logic stays outside Taskboard internals.
+6. **Human acceptance remains distinct from agent completion.**
+7. **Local-first for normal use.** Operations Center launch paths bind to `127.0.0.1`.
+8. **Preserve upstream compatibility.** Prefer additive wrappers, contracts, and adapters over invasive core rewrites.
+9. **External automation is a later phase.** Security boundaries become stricter when untrusted signals begin creating work automatically.
 
-## High-level flow
+## Phase 1 — Personal Operations Center
+
+Primary workflows:
 
 ```text
-External Signals
+Idea / request
     ↓
-Signal Intake
+Project
     ↓
-Normalization
+Task
     ↓
-Qualification Engine
+Conversation / Codex execution
     ↓
-Task Creation / Update
+Review
     ↓
-Agent Router
+Deliverable
     ↓
-Domain Module Execution
-    ↓
-Human Review
-    ↓
-Deliverable / Business Action
-    ↓
-Outcome Feedback
+Accepted / Done
 ```
 
-## Core layers
+Focus:
 
-### 00 — Taskboard Core
-Existing Codex Taskboard capabilities: projects, issues, statuses, comments, attachments, CLI, API, UI, and review lifecycle.
+- project visibility
+- backlog and priority management
+- keeping feature/work lineage outside chat history
+- linking work to one or more conversations
+- reviewing outcomes from one board
+- reducing dependence on conversation lists as the main navigation system
 
-### 01 — Signal Intake
-Responsible for ingesting raw external events from sources such as web, RSS, email, APIs, manual entry, CRM, or scheduled scrapers.
+### Normal local launch
 
-### 02 — Intelligence Modules
-Domain-specific modules such as:
+```bash
+npm run ops
+npm run ops:codex
+```
+
+These wrappers force `CODEX_TASKBOARD_HOST=127.0.0.1` while preserving original upstream scripts for deliberate LAN/cloud use.
+
+## Phase 2 — Intelligence modules
+
+After the Phase 1 workflow is useful in daily operation, add replaceable modules such as:
+
 - Faculty Watcher
 - Tender Finder
 - Government Funding Intelligence
 - Publication Watcher
 - Competitor Watcher
 
-### 03 — Qualification Engine
-Scores and filters signals using configurable rules such as relevance, confidence, commercial fit, account priority, geography, product fit, urgency, and expected value.
+These modules should communicate through contracts rather than modifying Taskboard core concepts.
 
-### 04 — Agent Router
-Selects the appropriate model, agent, skill, or workflow for a task. Routing decisions must not be hard-coded into domain modules.
+## Phase 3 — External Signal Intake
 
-### 05 — Human Review
-Provides accept, reject, deepen-research, reassign, and promote-to-action decisions.
+Only when external sources begin creating or modifying Tasks automatically, introduce the stronger trust boundary:
 
-### 06 — Deliverables
-Produces normalized outputs such as:
-- Early Lead
-- Account Brief
-- Market Alert
-- Weekly Brief
-- Campaign Recommendation
-- BD Recommendation
+```text
+External source
+    ↓
+Untrusted Signal
+    ↓
+Normalize / extract facts
+    ↓
+Qualification policy
+    ↓
+Task proposal
+    ↓
+Approved execution authority
+```
 
-### 07 — Integrations
-Adapters for Google Sheets, Google Drive, Microsoft Teams, Salesforce, email, and future systems.
+Core principle:
 
-## Initial implementation order
+> External content may provide facts, but it may never grant authority.
 
-1. Foundation contracts and module registry
-2. Faculty Watcher adapter
-3. Tender Finder adapter
-4. Government Funding Intelligence adapter
-5. Shared Signal Inbox / Early Leads aggregation
-6. Qualification scoring
-7. Dashboard adaptation
-8. External integrations
+External content must never be able to escalate sandbox settings, choose privileged capabilities, authorize outbound actions, or redefine system policy.
+
+## Layering
+
+```text
+00 Work Model / Contracts
+   Project
+   Task
+   Conversation
+   Deliverable
+
+01 Dashi Adapter
+   projects
+   issues/tasks
+   statuses
+   comments
+   attachments
+   UI
+   taskctl/API
+
+02 Execution Adapters
+   Codex
+   ChatGPT
+   future model/agent providers
+
+03 Optional Domain Modules
+   Faculty Watcher
+   Tender Finder
+   Funding Intelligence
+   etc.
+
+04 Optional Integrations
+   Google Drive / Sheets
+   Teams
+   Salesforce
+   email
+```
+
+## Portability strategy
+
+If a future OpenAI-native surface provides Projects + Tasks + Conversations + Agent review:
+
+```text
+Current
+Portable Work Model → Dashi Adapter → Codex / ChatGPT
+
+Future
+Portable Work Model → OpenAI Native Adapter
+```
+
+The target is to replace the adapter, not rewrite the workflow logic.
 
 ## Upstream strategy
 
 The fork should remain easy to compare with and update from `chuspeeism/dashi-taskboard`.
 
 - Keep upstream-derived core files minimally modified.
-- Prefer additive modules and adapters.
-- Use feature branches and PRs for all functional changes.
+- Prefer additive scripts, modules, adapters, and documentation.
+- Keep original upstream launch modes available.
+- Use feature branches and PRs for functional changes.
 - Document intentional divergence.
 - Keep Apache 2.0 attribution and license requirements intact.
+
+## Near-term implementation order
+
+1. Portable Project / Task / Conversation / Deliverable contracts
+2. Local-first Operations Center launcher
+3. Daily-use Project/Task/Conversation UX improvements
+4. Conversation linking and visibility
+5. Deliverable tracking
+6. Only then add intelligence modules
+7. External Signal trust boundary when automatic ingestion begins
